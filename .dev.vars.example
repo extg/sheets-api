@@ -1,0 +1,8 @@
+# =============================================================================
+# Sheets API - Development Variables Template
+# =============================================================================
+# Copy this file to .dev.vars and fill in your values
+# Used for local development with wrangler dev
+
+# Google Service Account Private Key
+SA_PRIVATE_KEY = "-----BEGIN PRIVATE KEY-----\nYOUR_PRIVATE_KEY_HERE\n-----END PRIVATE KEY-----"

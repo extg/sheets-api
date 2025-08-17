@@ -94,7 +94,39 @@ pnpm install
 npx wrangler login
 ```
 
-### 3.2 Configuration setup
+### 3.2 Local development setup
+
+For local development, you can use `.dev.vars` file - the standard way for Cloudflare Workers:
+
+1. **Create local development variables file**:
+   ```bash
+   cp .dev.vars.example .dev.vars
+   ```
+
+2. **Edit `.dev.vars`** with your credentials:
+   ```bash
+   # Google Service Account Private Key (required secret)
+   SA_PRIVATE_KEY = "-----BEGIN PRIVATE KEY-----\nYOUR_PRIVATE_KEY\n-----END PRIVATE KEY-----"
+   
+   # These variables can also be overridden from wrangler.toml:
+   SA_EMAIL = "sheets-bot@your-project.iam.gserviceaccount.com"
+   ALLOWED_ORIGINS = "*"
+   PROJECTS_CONFIG = '{"motobarn":{"sheetId":"1AbC...XyZ","ranges":{"leads":"Leads!A:Z"}}}'
+   ```
+
+3. **Start local development server**:
+   ```bash
+   # Local development with .dev.vars
+   pnpm dev
+   ```
+
+**Important notes for local development**:
+- The `.dev.vars` file is automatically ignored by Git
+- `.dev.vars` is the official Cloudflare Workers way for local secrets
+- Variables in `.dev.vars` override those in `wrangler.toml`
+- For production deployment, still use `wrangler secrets` for security
+
+### 3.3 Configuration setup
 
 Edit `wrangler.toml`:
 
@@ -108,7 +140,7 @@ SHEET_ID = "1AbC...XyZ..."  # Your sheet ID
 RANGE = "Sheet1!A:Z"       # Cell range
 ```
 
-### 3.3 Adding private key
+### 3.4 Adding private key
 
 From the downloaded JSON file, copy the value of the `private_key` field:
 
@@ -123,7 +155,7 @@ Paste the **full key** including headers:
 -----END PRIVATE KEY-----
 ```
 
-### 3.4 Deploy
+### 3.5 Deploy
 
 ```bash
 # Development (local)

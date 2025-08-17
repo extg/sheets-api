@@ -36,9 +36,6 @@ importers:
       '@cloudflare/workers-types':
         specifier: ^4.20240806.0
         version: 4.20250816.0
-      dotenv:
-        specifier: ^17.2.1
-        version: 17.2.1
       typescript:
         specifier: ^5.5.4
         version: 5.9.2
@@ -471,10 +468,6 @@ packages:
   detect-libc@2.0.4:
     resolution: {integrity: sha512-3UDv+G9CsCKO1WKMGw9fwq/SWJYbI0c5Y7LU1AXYoDdbhE2AHQ6N6Nb34sG8Fj7T5APy8qXDCKuuIHd1BR0tVA==}
     engines: {node: '>=8'}
-
-  dotenv@17.2.1:
-    resolution: {integrity: sha512-kQhDYKZecqnM0fCnzI5eIv5L4cAe/iRI+HqMbO/hbRdTAeXDG+M9FjipUxNfbARuEg4iHIbhnhs78BCHNbSxEQ==}
-    engines: {node: '>=12'}
 
   ecdsa-sig-formatter@1.0.11:
     resolution: {integrity: sha512-nagl3RYrbNv6kQkeJIpt6NJZy8twLB/2vtz6yN9Z4vRKHN4/QZJIEbqohALSgwKdnksuY3k5Addp5lg8sVoVcQ==}
@@ -1074,8 +1067,6 @@ snapshots:
 
   detect-libc@2.0.4:
     optional: true
-
-  dotenv@17.2.1: {}
 
   ecdsa-sig-formatter@1.0.11:
     dependencies:

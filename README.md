@@ -1,16 +1,16 @@
-# 📊 Universal Google Sheets API Service
+# Universal Google Sheets API Service
 
 A minimal, configurable API service built on **Hono + Cloudflare Workers** that accepts JSON data and writes it to Google Sheets through Service Account authentication. Now with **multi-project support**!
 
-## 🎯 Features
+## Features
 
-- **🏗️ Multi-Project Support**: Configure multiple projects with different sheets and lists
+- **Multi-Project Support**: Configure multiple projects with different sheets and lists
 - **📝 Auto-mapping**: Automatically maps JSON fields to spreadsheet columns based on header row
-- **🔧 Flexible URLs**: Project-based URLs with optional list names in the URL path
+- **Flexible URLs**: Project-based URLs with optional list names in the URL path
 - **🔐 Service Account Auth**: Secure authentication using Google Service Account JWT
-- **🌐 CORS Support**: Built-in CORS handling with configurable origins
+- **CORS Support**: Built-in CORS handling with configurable origins
 - **⚡ High Performance**: Runs on Cloudflare Workers edge network with built-in caching
-- **📦 Modern Stack**: Built with google-spreadsheet library for reliability
+- **Modern Stack**: Built with google-spreadsheet library for reliability
 
 ---
 
@@ -76,7 +76,7 @@ curl -X POST https://your-worker.workers.dev/motobarn/orders \
 
 ---
 
-## 📋 Configuration
+## Configuration
 
 ### Environment Variables (wrangler.toml)
 
@@ -108,7 +108,7 @@ npx wrangler secret put SA_PRIVATE_KEY
 
 ---
 
-## 📖 API Reference
+## API Reference
 
 ### Available Endpoints
 
@@ -153,7 +153,7 @@ Appends data to a specific list within the project.
 
 ---
 
-## 🔧 Advanced Configuration
+## Advanced Configuration
 
 ### Project Configuration Structure
 
@@ -206,7 +206,7 @@ The service automatically maps JSON fields to spreadsheet columns:
 
 ---
 
-## 🌐 URL Structure Examples
+## URL Structure Examples
 
 ### Real-world Usage
 
@@ -245,7 +245,7 @@ const submitLead = async (formData) => {
 
 ---
 
-## 🔐 Google Sheets Setup
+## Google Sheets Setup
 
 ### 1. Create Service Account
 
@@ -274,7 +274,7 @@ npx wrangler secret put SA_PRIVATE_KEY
 
 ---
 
-## 🛠️ Development
+## Development
 
 ### Local Development
 
@@ -303,7 +303,7 @@ curl -X POST http://localhost:8787/motobarn/leads \
 
 ---
 
-## 📦 Deployment
+## Deployment
 
 ### Production Deployment
 
@@ -327,7 +327,7 @@ npx wrangler secret put SA_PRIVATE_KEY
 
 ---
 
-## 🔍 Troubleshooting
+## Troubleshooting
 
 ### Common Issues
 
@@ -360,13 +360,13 @@ npx wrangler tail
 
 ---
 
-## 📄 License
+## License
 
 MIT License - feel free to use in your projects!
 
 ---
 
-## 🤝 Contributing
+## Contributing
 
 1. Fork the repository
 2. Create a feature branch

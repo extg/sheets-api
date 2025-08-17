@@ -51,12 +51,13 @@ app.get('/health', (c) => {
       protocol: currentUrl.protocol,
       port: currentUrl.port || (currentUrl.protocol === 'https:' ? '443' : '80')
     },
-    endpoints: [
-      'GET  / (docs)',
-      'GET  /health',
-      'POST /:projectId/:listName',
-      'GET  /openapi'
-    ]
+          endpoints: [
+        'GET  / (docs)',
+        'GET  /health',
+        'POST /:projectId/:listName',
+        'POST /direct/:sheetId/:range',
+        'GET  /openapi'
+      ]
   })
 })
 
@@ -152,6 +153,61 @@ app.post(
   }
 )
 
+// Direct endpoint - using sheetId and range directly
+app.post(
+  '/direct/:sheetId/:range',
+  zValidator('json', AppendPayloadSchema),
+  async (c) => {
+    const startTime = Date.now()
+    const sheetId = c.req.param('sheetId')
+    const range = decodeURIComponent(c.req.param('range'))
+    
+    try {
+      const body = c.req.valid('json')
+
+      const saEmail = c.env.SA_EMAIL
+      const saPrivateKey = c.env.SA_PRIVATE_KEY
+
+      if (!saEmail || !saPrivateKey) {
+        throw new Error('Service account credentials not configured')
+      }
+
+      // Normalize data to array of objects
+      const items = Array.isArray(body.data) ? body.data : [body.data]
+
+      // Append to sheet using google-spreadsheet library
+      const result = await appendToSheet(
+        sheetId,
+        range,
+        items,
+        saEmail,
+        saPrivateKey
+      )
+
+      const duration = Date.now() - startTime
+      
+      console.log(`[${new Date().toISOString()}] SUCCESS - direct: ${sheetId}/${range}, written: ${result.written}, duration: ${duration}ms`)
+
+      return c.json<AppendResponse>({ 
+        ok: true, 
+        written: result.written
+      })
+
+    } catch (error) {
+      const duration = Date.now() - startTime
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      
+      console.log(`[${new Date().toISOString()}] ERROR - direct: ${sheetId}/${range}, error: ${errorMessage}, duration: ${duration}ms`)
+      
+      return c.json<AppendResponse>({ 
+        ok: false, 
+        error: 'append_failed',
+        detail: errorMessage
+      }, 502)
+    }
+  }
+)
+
 // OpenAPI specification endpoint
 app.get('/openapi', (c) => {
   // Get current URL dynamically
@@ -221,14 +277,14 @@ app.get('/openapi', (c) => {
               in: 'path',
               required: true,
               schema: { type: 'string' },
-              example: 'motobarn'
+              example: 'myproject'
             },
             {
               name: 'listName',
               in: 'path',
               required: true,
               schema: { type: 'string' },
-              example: 'leads'
+              example: 'contacts'
             }
           ],
           requestBody: {
@@ -249,16 +305,12 @@ app.get('/openapi', (c) => {
                             name: 'John Doe', 
                             email: 'john@example.com',
                             phone: '+1234567890',
-                            motorcycle: 'Yamaha MT-07',
-                            rental_type: 'daily',
-                            rental_start: '2024-01-20',
-                            rental_end: '2024-01-22',
-                            pickup_time: '09:00',
-                            dropoff_time: '18:00',
-                            riding_mode: 'street',
-                            addons: 'helmet,gloves',
-                            pickup_dropoff_option: 'delivery',
-                            final_price: 150.00
+                            company: 'Acme Corp',
+                            job_title: 'Developer',
+                            source: 'website',
+                            message: 'Interested in your services',
+                            budget: 5000,
+                            priority: 'high'
                           }
                         },
                         {
@@ -273,32 +325,146 @@ app.get('/openapi', (c) => {
                               name: 'John Doe', 
                               email: 'john@example.com',
                               phone: '+1234567890',
-                              motorcycle: 'Yamaha MT-07',
-                              rental_type: 'daily',
-                              rental_start: '2024-01-20',
-                              rental_end: '2024-01-22',
-                              pickup_time: '09:00',
-                              dropoff_time: '18:00',
-                              riding_mode: 'street',
-                              addons: 'helmet,gloves',
-                              pickup_dropoff_option: 'delivery',
-                              final_price: 150.00
+                              company: 'Acme Corp',
+                              job_title: 'Developer',
+                              source: 'website',
+                              message: 'Interested in your services',
+                              budget: 5000,
+                              priority: 'high'
                             },
                             { 
                               timestamp: '2024-01-15T11:45:00Z',
                               name: 'Jane Smith', 
                               email: 'jane@example.com',
                               phone: '+0987654321',
-                              motorcycle: 'Honda CB650R',
-                              rental_type: 'weekly',
-                              rental_start: '2024-01-25',
-                              rental_end: '2024-02-01',
-                              pickup_time: '10:00',
-                              dropoff_time: '17:00',
-                              riding_mode: 'touring',
-                              addons: 'helmet,jacket,boots',
-                              pickup_dropoff_option: 'pickup',
-                              final_price: 420.00
+                              company: 'Tech Solutions',
+                              job_title: 'Product Manager',
+                              source: 'referral',
+                              message: 'Looking for consulting services',
+                              budget: 10000,
+                              priority: 'medium'
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  },
+                  required: ['data']
+                }
+              }
+            }
+          },
+          responses: {
+            '200': {
+              description: 'Data successfully appended',
+              content: {
+                'application/json': {
+                  schema: {
+                    type: 'object',
+                    properties: {
+                      ok: { type: 'boolean', example: true },
+                      written: { type: 'number', example: 1 }
+                    }
+                  }
+                }
+              }
+            },
+            '400': {
+              description: 'Invalid request payload',
+              content: {
+                'application/json': {
+                  schema: {
+                    type: 'object',
+                    properties: {
+                      ok: { type: 'boolean', example: false },
+                      error: { type: 'string', example: 'invalid_payload' },
+                      detail: { type: 'string' }
+                    }
+                  }
+                }
+              }
+            },
+            '502': {
+              description: 'Failed to append data to sheet',
+              content: {
+                'application/json': {
+                  schema: {
+                    type: 'object',
+                    properties: {
+                      ok: { type: 'boolean', example: false },
+                      error: { type: 'string', example: 'append_failed' },
+                      detail: { type: 'string', example: 'Invalid spreadsheet ID' }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      '/direct/{sheetId}/{range}': {
+        post: {
+          summary: 'Append data directly to Google Sheet',
+          description: 'Append data directly to a specific sheet using sheetId and range, bypassing project configuration',
+          tags: ['Data Management'],
+          parameters: [
+            {
+              name: 'sheetId',
+              in: 'path',
+              required: true,
+              schema: { type: 'string' },
+              description: 'Google Sheets document ID',
+              example: '1ABC123XYZ456...'
+            },
+            {
+              name: 'range',
+              in: 'path',
+              required: true,
+              schema: { type: 'string' },
+              description: 'Sheet range (URL encoded)',
+              example: 'Sheet1!A:Z'
+            }
+          ],
+          requestBody: {
+            description: 'Data to append to the sheet',
+            required: true,
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    data: {
+                      oneOf: [
+                        { 
+                          type: 'object',
+                          additionalProperties: true,
+                          example: { 
+                            timestamp: '2024-01-15T10:30:00Z',
+                            name: 'John Doe', 
+                            email: 'john@example.com',
+                            phone: '+1234567890',
+                            company: 'Acme Corp',
+                            job_title: 'Developer',
+                            source: 'website',
+                            message: 'Interested in your services',
+                            budget: 5000,
+                            priority: 'high'
+                          }
+                        },
+                        {
+                          type: 'array',
+                          items: {
+                            type: 'object',
+                            additionalProperties: true
+                          },
+                          example: [
+                            { 
+                              timestamp: '2024-01-15T10:30:00Z',
+                              name: 'John Doe', 
+                              email: 'john@example.com',
+                              phone: '+1234567890',
+                              company: 'Acme Corp',
+                              message: 'Direct API usage example'
                             }
                           ]
                         }

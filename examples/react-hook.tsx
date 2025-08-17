@@ -16,8 +16,11 @@ interface UseSheetSubmitReturn {
   reset: () => void
 }
 
-// Replace with your Cloudflare Worker URL and project/list names
-const DEFAULT_API_URL = 'https://your-worker.example.com/project1/leads'
+// Replace with your Cloudflare Worker URL
+// Option 1: Using project configuration
+const DEFAULT_API_URL = 'https://your-worker.example.com/myproject/contacts'
+// Option 2: Using direct mode
+// const DEFAULT_API_URL = 'https://your-worker.example.com/direct/1ABC123XYZ456.../Sheet1%21A%3AZ'
 
 export function useSheetSubmit(apiUrl: string = DEFAULT_API_URL): UseSheetSubmitReturn {
   const [loading, setLoading] = useState(false)
@@ -83,6 +86,7 @@ interface ContactFormData {
   name: string
   email: string
   phone?: string
+  company?: string
   message?: string
   source?: string
 }
@@ -93,6 +97,7 @@ export function ContactForm() {
     name: '',
     email: '',
     phone: '',
+    company: '',
     message: '',
     source: ''
   })
@@ -117,12 +122,13 @@ export function ContactForm() {
         name: '',
         email: '',
         phone: '',
+        company: '',
         message: '',
         source: ''
       })
       
       // Optional: send event to analytics
-      // gtag('event', 'form_submit', { event_category: 'engagement' })
+      // gtag('event', 'contact_form_submit', { event_category: 'engagement' })
       
     } catch (err) {
       console.error('Form submission failed:', err)
@@ -195,10 +201,26 @@ export function ContactForm() {
           <option value="google">Google</option>
           <option value="facebook">Facebook</option>
           <option value="instagram">Instagram</option>
-          <option value="yandex">Yandex</option>
+          <option value="linkedin">LinkedIn</option>
+          <option value="website">Website</option>
           <option value="direct">Direct</option>
           <option value="referral">Referral</option>
         </select>
+      </div>
+
+      <div>
+        <label htmlFor="company" className="block text-sm font-medium text-gray-700">
+          Company
+        </label>
+        <input
+          type="text"
+          id="company"
+          name="company"
+          value={formData.company}
+          onChange={handleChange}
+          placeholder="Your company name"
+          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+        />
       </div>
 
       <div>
@@ -211,7 +233,7 @@ export function ContactForm() {
           rows={4}
           value={formData.message}
           onChange={handleChange}
-          placeholder="Describe your request..."
+          placeholder="Tell us about your project or inquiry..."
           className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
         />
       </div>
@@ -242,7 +264,7 @@ export function ContactForm() {
 
       {success && (
         <div className="text-green-600 text-sm">
-          ✅ Thank you! Your request has been sent.
+          ✅ Thank you! Your message has been sent successfully.
         </div>
       )}
     </form>
@@ -252,13 +274,13 @@ export function ContactForm() {
 // Example usage for bulk submission
 export function BulkSubmitExample() {
   // Use different API URL for bulk imports (different project/list)
-  const { submit, loading, error } = useSheetSubmit('https://your-worker.example.com/project1/imports')
+  const { submit, loading, error } = useSheetSubmit('https://your-worker.example.com/myproject/imports')
 
   const handleBulkSubmit = async () => {
     const bulkData = [
-      { name: 'User 1', email: 'user1@example.com', source: 'import' },
-      { name: 'User 2', email: 'user2@example.com', source: 'import' },
-      { name: 'User 3', email: 'user3@example.com', source: 'import' }
+      { name: 'John Doe', email: 'john@example.com', company: 'Acme Corp', source: 'import' },
+      { name: 'Jane Smith', email: 'jane@example.com', company: 'Tech Solutions', source: 'import' },
+      { name: 'Bob Johnson', email: 'bob@example.com', company: 'Innovation Labs', source: 'import' }
     ]
 
     try {

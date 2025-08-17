@@ -12,14 +12,14 @@ enabled = true
 
 [vars]
 # Global configuration
-SA_EMAIL = "sheets-api@sheetsapi-469312.iam.gserviceaccount.com"
+SA_EMAIL = "service-account@your-project.iam.gserviceaccount.com"
 ALLOWED_ORIGINS = "*"
 
 # Projects configuration in JSON format
 PROJECTS_CONFIG = '''
 {
-  "motobarn": {
-    "sheetId": "1F-dygTEQ_uT1KxnV38kkaL1bB9g45xWs4NtTX72YqYI",
+  "your-project": {
+    "sheetId": "YOUR_GOOGLE_SHEET_ID",
     "ranges": {
       "leads": "Leads!A:Z"
     }

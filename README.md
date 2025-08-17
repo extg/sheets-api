@@ -34,25 +34,40 @@ pnpm deploy
 
 ### 2. API Usage
 
-**Single Required Endpoint:**
+**Available Endpoints:**
 
 ```bash
-# Project with specific list (both parameters required)
+# Project-based endpoint (uses PROJECT_CONFIG aliases)
 POST /:projectId/:listName
+
+# Direct endpoint (bypasses PROJECT_CONFIG, uses direct parameters)
+POST /direct/:sheetId/:range
 ```
 
 **Example Requests:**
 
 ```bash
-# Send to project1, leads list
-curl -X POST https://your-worker.workers.dev/project1/leads \
+# Option 1: Project-based approach (using configured aliases)
+curl -X POST https://your-worker.workers.dev/myproject/contacts \
   -H "Content-Type: application/json" \
   -d '{
     "data": {
       "name": "John Doe",
       "email": "john@example.com",
       "phone": "+1234567890",
-      "utm_source": "facebook"
+      "company": "Acme Corp",
+      "source": "website"
+    }
+  }'
+
+# Option 2: Direct approach (bypassing PROJECT_CONFIG)
+curl -X POST https://your-worker.workers.dev/direct/1ABC123XYZ.../Sheet1%21A%3AZ \
+  -H "Content-Type: application/json" \
+  -d '{
+    "data": {
+      "name": "John Doe",
+      "email": "john@example.com",
+      "company": "Acme Corp"
     }
   }'
 ```
@@ -77,12 +92,13 @@ curl -X POST https://your-worker.workers.dev/project1/leads \
 SA_EMAIL = "service-account@project.iam.gserviceaccount.com"
 ALLOWED_ORIGINS = "*"
 
-# Projects configuration in JSON format
+# Projects configuration in JSON format (optional for direct usage)
 PROJECTS_CONFIG = '''
 {
-  "project1": {
-    "sheetId": "1XyZ...project2_sheet_id...",
+  "myproject": {
+    "sheetId": "1ABC123XYZ456...",
     "ranges": {
+      "contacts": "Contacts!A:Z",
       "leads": "Leads!A:Z",
       "orders": "Orders!A:Z"
     }
@@ -103,20 +119,29 @@ npx wrangler secret put SA_PRIVATE_KEY
 
 ### Available Endpoints
 
-- `GET /` - Health check and endpoint list
-- `POST /:projectId/:listName` - Append to specific list
+- `GET /` - Interactive API documentation (Swagger UI)
+- `GET /health` - Health check and endpoint list
+- `POST /:projectId/:listName` - Append to project-configured list
+- `POST /direct/:sheetId/:range` - Append directly to sheet (bypasses project config)
+- `GET /openapi` - OpenAPI specification
 
 ### POST /:projectId/:listName
 
-Appends data to a specific list within the project.
+Appends data to a specific list within the project using PROJECT_CONFIG aliases.
 
-**Request Body:**
+### POST /direct/:sheetId/:range
+
+Appends data directly to a Google Sheet using sheetId and range, bypassing project configuration. The range parameter should be URL encoded (e.g., `Sheet1%21A%3AZ` for `Sheet1!A:Z`).
+
+**Request Body (both endpoints):**
 ```json
 {
   "data": {
     // Single object or array of objects
-    "field1": "value1",
-    "field2": "value2"
+    "name": "John Doe",
+    "email": "john@example.com",
+    "company": "Acme Corp",
+    "source": "website"
   }
 }
 ```
@@ -133,14 +158,15 @@ Appends data to a specific list within the project.
 ```json
 {
   "ok": false,
-  "error": "Project \"unknown\" not found"
+  "error": "append_failed",
+  "detail": "Project not found or invalid sheet ID"
 }
 ```
 
 **Status Codes:**
 - `200` - Success
-- `400` - Invalid payload, project not found, or list not found
-- `502` - Google Sheets API error
+- `400` - Invalid payload, validation error
+- `502` - Google Sheets API error, project/list not found, or authentication error
 
 ---
 
@@ -153,10 +179,11 @@ Each project in `PROJECTS_CONFIG` can have:
 ```json
 {
   "projectId": {
-    "sheetId": "required_google_sheet_id",
+    "sheetId": "1ABC123XYZ456...",
     "ranges": {
-      "listName1": "Sheet1!A:Z",
-      "listName2": "Sheet2!A:Z"
+      "contacts": "Contacts!A:Z",
+      "leads": "Leads!A:Z",
+      "orders": "Orders!A:Z"
     }
   }
 }
@@ -164,9 +191,9 @@ Each project in `PROJECTS_CONFIG` can have:
 
 ### Configuration Priority
 
-1. **URL Parameters**: `/:projectId/:listName` - defines which project and list to use
-2. **Project Config**: From `PROJECTS_CONFIG` JSON - defines sheet ID and ranges
-3. **No Fallbacks**: All projects and lists must be explicitly configured
+1. **Direct Mode**: `/direct/:sheetId/:range` - bypasses all configuration, uses direct parameters
+2. **Project Mode**: `/:projectId/:listName` - uses PROJECT_CONFIG aliases
+3. **Fallbacks**: Direct mode has no dependencies, project mode requires valid PROJECT_CONFIG
 
 ### Multiple Records
 
@@ -202,35 +229,44 @@ The service automatically maps JSON fields to spreadsheet columns:
 ### Real-world Usage
 
 ```bash
-# Project1 leads
-POST /project1/leads
-→ Goes to "Leads!A:Z" sheet in project1's Google Sheet
+# Project-based approach (configured aliases)
+POST /myproject/contacts
+→ Goes to configured "Contacts!A:Z" range in myproject's Google Sheet
 
-# Project1 orders  
-POST /project1/orders
-→ Goes to "Orders!A:Z" sheet in project1's Google Sheet
+POST /myproject/leads
+→ Goes to configured "Leads!A:Z" range in myproject's Google Sheet
 
-# Project2 subscribers
-POST /project2/subscribers  
-→ Goes to "Subscribers!A:Z" sheet in project2's Google Sheet
+# Direct approach (no configuration needed)
+POST /direct/1ABC123XYZ456.../Contacts%21A%3AZ
+→ Goes directly to "Contacts!A:Z" in specified Google Sheet
 
-# All endpoints require both project and list
-# No fallbacks or defaults
+POST /direct/1ABC123XYZ456.../Sheet1%21B2%3AF100
+→ Goes directly to "Sheet1!B2:F100" range in specified Google Sheet
 ```
 
 ### Frontend Integration
 
 ```javascript
-// React/Next.js example
-const submitLead = async (formData) => {
-  const response = await fetch('https://your-worker.workers.dev/project1/leads', {
+// React/Next.js example - Project mode
+const submitContact = async (formData) => {
+  const response = await fetch('https://your-worker.workers.dev/myproject/contacts', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ data: formData })
   })
-  
-  const result = await response.json()
-  return result
+  return response.json()
+}
+
+// React/Next.js example - Direct mode
+const submitDirect = async (formData) => {
+  const sheetId = '1ABC123XYZ456...'
+  const range = encodeURIComponent('Contacts!A:Z')
+  const response = await fetch(`https://your-worker.workers.dev/direct/${sheetId}/${range}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ data: formData })
+  })
+  return response.json()
 }
 ```
 
@@ -272,12 +308,17 @@ pnpm type-check
 
 ```bash
 # Test health endpoint
-curl http://localhost:8787/
+curl http://localhost:8787/health
 
 # Test project endpoint
-curl -X POST http://localhost:8787/project1/leads \
+curl -X POST http://localhost:8787/myproject/contacts \
   -H "Content-Type: application/json" \
-  -d '{"data": {"test": "value"}}'
+  -d '{"data": {"name": "Test User", "email": "test@example.com"}}'
+
+# Test direct endpoint
+curl -X POST http://localhost:8787/direct/1ABC123XYZ.../Sheet1%21A%3AZ \
+  -H "Content-Type: application/json" \
+  -d '{"data": {"name": "Test User", "email": "test@example.com"}}'
 ```
 
 ---
@@ -310,20 +351,27 @@ npx wrangler secret put SA_PRIVATE_KEY
 
 ### Common Issues
 
-**"Project not found" Error**
+**"Project not found" Error** (Project mode only)
 - Verify project exists in `PROJECTS_CONFIG` JSON
 - Check JSON syntax in wrangler.toml
 - Ensure project slug matches exactly
+- Alternative: Use direct mode to bypass project configuration
 
-**"List not found" Error**  
+**"List not found" Error** (Project mode only)
 - Verify the list name exists in project's `ranges` object
 - Check spelling and case sensitivity
-- Remember: both project and list are required parameters
+- Alternative: Use direct mode with explicit range
 
 **"append_failed" Error**  
 - Verify service account has access to the sheet
 - Check that the SA_PRIVATE_KEY secret is set correctly
 - Ensure Google Sheets API is enabled
+- For direct mode: verify sheetId format and range syntax
+
+**Direct Mode Issues**
+- Ensure sheetId is correct (from Google Sheets URL)
+- URL encode range parameter (e.g., `Sheet1%21A%3AZ` for `Sheet1!A:Z`)
+- Verify service account has access to the specific sheet
 
 **CORS Issues**
 - Update `ALLOWED_ORIGINS` in wrangler.toml

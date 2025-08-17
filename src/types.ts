@@ -6,8 +6,8 @@ export type Env = {
     SA_PRIVATE_KEY: string
     ALLOWED_ORIGINS?: string
     
-    // Projects configuration in JSON format
-    // Example: {"project1": {"sheetId": "...", "ranges": {"leads": "Leads!A:Z"}}}
+    // Projects configuration in JSON format (optional for direct usage)
+    // Example: {"myproject": {"sheetId": "...", "ranges": {"contacts": "Contacts!A:Z"}}}
     PROJECTS_CONFIG: string
   }
 }
@@ -55,5 +55,11 @@ export const ParamsSchema = z.object({
   listName: z.string()
 })
 
+export const DirectParamsSchema = z.object({
+  sheetId: z.string(),
+  range: z.string()
+})
+
 export type AppendPayload = z.infer<typeof AppendPayloadSchema>
 export type AppendResponse = z.infer<typeof AppendResponseSchema>
+export type DirectParams = z.infer<typeof DirectParamsSchema>

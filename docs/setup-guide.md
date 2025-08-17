@@ -1,7 +1,7 @@
 # Step-by-Step Setup Guide
 
 ## 🎯 Goal
-Set up a universal API for writing data to Google Sheets with automatic field mapping.
+Set up a universal API for writing data to Google Sheets with automatic field mapping. Supports both project-based configuration and direct sheet access.
 
 ## 📋 What you'll need
 - Google account
@@ -111,7 +111,7 @@ For local development, you can use `.dev.vars` file - the standard way for Cloud
    # These variables can also be overridden from wrangler.toml:
    SA_EMAIL = "sheets-bot@your-project.iam.gserviceaccount.com"
    ALLOWED_ORIGINS = "*"
-   PROJECTS_CONFIG = '{"project1":{"sheetId":"1AbC...XyZ","ranges":{"leads":"Leads!A:Z"}}}'
+   PROJECTS_CONFIG = '{"myproject":{"sheetId":"1ABC123XYZ456...","ranges":{"contacts":"Contacts!A:Z","leads":"Leads!A:Z"}}}'
    ```
 
 3. **Start local development server**:
@@ -136,8 +136,20 @@ name = "my-sheets-api"  # Change to unique name
 
 ```toml
 SA_EMAIL = "sheets-bot@your-project.iam.gserviceaccount.com"
-SHEET_ID = "1AbC...XyZ..."  # Your sheet ID
-RANGE = "Sheet1!A:Z"       # Cell range
+ALLOWED_ORIGINS = "*"
+
+# Optional: Only needed for project-based endpoints
+PROJECTS_CONFIG = '''
+{
+  "myproject": {
+    "sheetId": "1ABC123XYZ456...",
+    "ranges": {
+      "contacts": "Contacts!A:Z",
+      "leads": "Leads!A:Z"
+    }
+  }
+}
+'''
 ```
 
 ### 3.4 Adding private key
@@ -177,13 +189,26 @@ https://my-sheets-api.your-subdomain.workers.dev
 ### 4.1 Test via curl
 
 ```bash
-curl -X POST https://my-sheets-api.your-subdomain.workers.dev/project1/leads \
+# Test project-based endpoint
+curl -X POST https://my-sheets-api.your-subdomain.workers.dev/myproject/contacts \
   -H "Content-Type: application/json" \
   -d '{
     "data": {
       "name": "John Doe",
       "email": "john@example.com",
-      "phone": "+1234567890"
+      "phone": "+1234567890",
+      "company": "Acme Corp"
+    }
+  }'
+
+# Test direct endpoint (no PROJECT_CONFIG needed)
+curl -X POST https://my-sheets-api.your-subdomain.workers.dev/direct/1ABC123XYZ456.../Contacts%21A%3AZ \
+  -H "Content-Type: application/json" \
+  -d '{
+    "data": {
+      "name": "John Doe",
+      "email": "john@example.com",
+      "company": "Acme Corp"
     }
   }'
 ```
@@ -192,13 +217,17 @@ curl -X POST https://my-sheets-api.your-subdomain.workers.dev/project1/leads \
 
 Open your spreadsheet and make sure the data was written to the correct columns.
 
-### 4.3 Check headers
+### 4.3 Check API documentation
 
 ```bash
+# Get interactive documentation
 curl https://my-sheets-api.your-subdomain.workers.dev/
+
+# Get health check and endpoints list
+curl https://my-sheets-api.your-subdomain.workers.dev/health
 ```
 
-Should return the list of headers from the first row.
+Should return service status and available endpoints.
 
 ---
 
@@ -206,15 +235,15 @@ Should return the list of headers from the first row.
 
 ### 5.1 Simple HTML
 
-Use `examples/frontend.html` as a base, replacing:
-- API URL with your Worker URL
-- Project/list names as needed
+Use `examples/frontend.html` as a base, choosing:
+- Project-based URL: `https://your-worker.workers.dev/myproject/contacts`
+- Direct URL: `https://your-worker.workers.dev/direct/SHEET_ID/RANGE`
 
 ### 5.2 React Hook
 
 Copy `examples/react-hook.tsx` and configure:
-- API URL
-- Project/list names
+- Project-based API URL: `https://your-worker.workers.dev/myproject/contacts`
+- Direct API URL: `https://your-worker.workers.dev/direct/SHEET_ID/RANGE`
 
 ### 5.3 CORS Setup (important!)
 
@@ -237,10 +266,11 @@ ALLOWED_ORIGINS = "https://yourdomain.com"
 - [ ] Service Account created and JSON key downloaded
 - [ ] Google spreadsheet shared with Service Account
 - [ ] Headers in first row configured
-- [ ] `wrangler.toml` configured with correct variables
+- [ ] `wrangler.toml` configured with SA_EMAIL
+- [ ] `PROJECTS_CONFIG` configured (if using project mode)
 - [ ] `SA_PRIVATE_KEY` added via secrets
 - [ ] Worker deployed to Cloudflare
-- [ ] API tested via curl
+- [ ] API tested via curl (both modes if needed)
 - [ ] CORS configured for your domain
 - [ ] Frontend integrated and tested
 

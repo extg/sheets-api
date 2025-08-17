@@ -7,6 +7,9 @@ compatibility_flags = ["nodejs_compat"]
 port = 8787
 local_protocol = "http"
 
+[observability.logs]
+enabled = true
+
 [vars]
 # Global configuration
 SA_EMAIL = "sheets-api@sheetsapi-469312.iam.gserviceaccount.com"

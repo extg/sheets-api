@@ -5,8 +5,7 @@ interface SheetData {
 }
 
 interface SubmitOptions {
-  sheetId?: string
-  range?: string
+  // Project and list are now specified in the URL
 }
 
 interface UseSheetSubmitReturn {
@@ -17,8 +16,8 @@ interface UseSheetSubmitReturn {
   reset: () => void
 }
 
-// Replace with your Cloudflare Worker URL
-const DEFAULT_API_URL = 'https://your-worker.example.com'
+// Replace with your Cloudflare Worker URL and project/list names
+const DEFAULT_API_URL = 'https://your-worker.example.com/project1/leads'
 
 export function useSheetSubmit(apiUrl: string = DEFAULT_API_URL): UseSheetSubmitReturn {
   const [loading, setLoading] = useState(false)
@@ -35,8 +34,7 @@ export function useSheetSubmit(apiUrl: string = DEFAULT_API_URL): UseSheetSubmit
     
     try {
       const payload = {
-        data,
-        ...options
+        data
       }
       
       const response = await fetch(apiUrl, {
@@ -54,7 +52,7 @@ export function useSheetSubmit(apiUrl: string = DEFAULT_API_URL): UseSheetSubmit
       }
       
       setSuccess(true)
-      return result.result
+      return result
       
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unknown error'
@@ -253,7 +251,8 @@ export function ContactForm() {
 
 // Example usage for bulk submission
 export function BulkSubmitExample() {
-  const { submit, loading, error } = useSheetSubmit()
+  // Use different API URL for bulk imports (different project/list)
+  const { submit, loading, error } = useSheetSubmit('https://your-worker.example.com/project1/imports')
 
   const handleBulkSubmit = async () => {
     const bulkData = [
@@ -263,9 +262,7 @@ export function BulkSubmitExample() {
     ]
 
     try {
-      await submit(bulkData, {
-        range: 'BulkImport!A:Z' // Different sheet for import
-      })
+      await submit(bulkData)
       console.log('Bulk submit successful!')
     } catch (err) {
       console.error('Bulk submit failed:', err)

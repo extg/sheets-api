@@ -5,16 +5,18 @@ A minimal, configurable API service built on **Hono + Cloudflare Workers** that 
 ## Features
 
 - **Multi-Project Support**: Configure multiple projects with different sheets and lists
-- **📝 Auto-mapping**: Automatically maps JSON fields to spreadsheet columns based on header row
+- **Auto-mapping**: Automatically maps JSON fields to spreadsheet columns based on header row
 - **Flexible URLs**: Project-based URLs with optional list names in the URL path
-- **🔐 Service Account Auth**: Secure authentication using Google Service Account JWT
+- **Service Account Auth**: Secure authentication using Google Service Account JWT
 - **CORS Support**: Built-in CORS handling with configurable origins
-- **⚡ High Performance**: Runs on Cloudflare Workers edge network with built-in caching
+- **High Performance**: Runs on Cloudflare Workers edge network with built-in caching
 - **Modern Stack**: Built with google-spreadsheet library for reliability
 
 ---
 
 ## 🚀 Quick Start
+
+**📋 Detailed Setup Guide**: [Complete setup instructions →](./docs/setup-guide.md)
 
 ### 1. Deploy to Cloudflare Workers
 
@@ -42,8 +44,8 @@ POST /:projectId/:listName
 **Example Requests:**
 
 ```bash
-# Send to motobarn project, leads list
-curl -X POST https://your-worker.workers.dev/motobarn/leads \
+# Send to project1, leads list
+curl -X POST https://your-worker.workers.dev/project1/leads \
   -H "Content-Type: application/json" \
   -d '{
     "data": {
@@ -51,17 +53,6 @@ curl -X POST https://your-worker.workers.dev/motobarn/leads \
       "email": "john@example.com",
       "phone": "+1234567890",
       "utm_source": "facebook"
-    }
-  }'
-
-# Send to motobarn project, orders list
-curl -X POST https://your-worker.workers.dev/motobarn/orders \
-  -H "Content-Type: application/json" \
-  -d '{
-    "data": {
-      "name": "Jane Smith",
-      "email": "jane@example.com",
-      "product": "Widget"
     }
   }'
 ```
@@ -211,13 +202,13 @@ The service automatically maps JSON fields to spreadsheet columns:
 ### Real-world Usage
 
 ```bash
-# Motobarn leads
-POST /motobarn/leads
-→ Goes to "Leads!A:Z" sheet in motobarn's Google Sheet
+# Project1 leads
+POST /project1/leads
+→ Goes to "Leads!A:Z" sheet in project1's Google Sheet
 
-# Motobarn orders  
-POST /motobarn/orders
-→ Goes to "Orders!A:Z" sheet in motobarn's Google Sheet
+# Project1 orders  
+POST /project1/orders
+→ Goes to "Orders!A:Z" sheet in project1's Google Sheet
 
 # Project2 subscribers
 POST /project2/subscribers  
@@ -232,7 +223,7 @@ POST /project2/subscribers
 ```javascript
 // React/Next.js example
 const submitLead = async (formData) => {
-  const response = await fetch('/api/sheets/motobarn/leads', {
+  const response = await fetch('https://your-worker.workers.dev/project1/leads', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ data: formData })
@@ -243,34 +234,22 @@ const submitLead = async (formData) => {
 }
 ```
 
+**See examples folder for complete implementations:**
+- [HTML Form Example](./examples/frontend.html)
+- [React Hook Example](./examples/react-hook.tsx)
+
 ---
 
 ## Google Sheets Setup
 
-### 1. Create Service Account
+**📋 Detailed Setup Guide**: [Complete setup instructions →](./docs/setup-guide.md)
 
-1. Go to [Google Cloud Console](https://console.cloud.google.com/)
-2. Create a new project or select existing
-3. Enable Google Sheets API
-4. Create Service Account credentials
-5. Download the JSON key file
+### Quick Overview
 
-### 2. Share Sheet with Service Account
-
-1. Open your Google Sheet
-2. Click "Share" 
-3. Add the service account email (from JSON file)
-4. Grant "Editor" permissions
-
-### 3. Configure Wrangler
-
-```bash
-# Set the private key as a secret
-npx wrangler secret put SA_PRIVATE_KEY
-# Paste the entire private key including -----BEGIN/END----- lines
-
-# Update wrangler.toml with project configurations
-```
+1. Create Google Service Account
+2. Share your Google Sheet with the service account email
+3. Configure environment variables in wrangler.toml
+4. Deploy to Cloudflare Workers
 
 ---
 
@@ -296,7 +275,7 @@ pnpm type-check
 curl http://localhost:8787/
 
 # Test project endpoint
-curl -X POST http://localhost:8787/motobarn/leads \
+curl -X POST http://localhost:8787/project1/leads \
   -H "Content-Type: application/json" \
   -d '{"data": {"test": "value"}}'
 ```

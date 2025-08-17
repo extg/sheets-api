@@ -111,7 +111,7 @@ For local development, you can use `.dev.vars` file - the standard way for Cloud
    # These variables can also be overridden from wrangler.toml:
    SA_EMAIL = "sheets-bot@your-project.iam.gserviceaccount.com"
    ALLOWED_ORIGINS = "*"
-   PROJECTS_CONFIG = '{"motobarn":{"sheetId":"1AbC...XyZ","ranges":{"leads":"Leads!A:Z"}}}'
+   PROJECTS_CONFIG = '{"project1":{"sheetId":"1AbC...XyZ","ranges":{"leads":"Leads!A:Z"}}}'
    ```
 
 3. **Start local development server**:
@@ -177,7 +177,7 @@ https://my-sheets-api.your-subdomain.workers.dev
 ### 4.1 Test via curl
 
 ```bash
-curl -X POST https://my-sheets-api.your-subdomain.workers.dev/motobarn/leads \
+curl -X POST https://my-sheets-api.your-subdomain.workers.dev/project1/leads \
   -H "Content-Type: application/json" \
   -d '{
     "data": {

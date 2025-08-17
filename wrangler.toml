@@ -1,0 +1,24 @@
+name = "sheets-api"
+main = "src/index.ts"
+compatibility_date = "2025-08-16"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+# Global configuration
+SA_EMAIL = "sheets-api@sheetsapi-469312.iam.gserviceaccount.com"
+ALLOWED_ORIGINS = "*"
+
+# Projects configuration in JSON format
+PROJECTS_CONFIG = '''
+{
+  "motobarn": {
+    "sheetId": "1F-dygTEQ_uT1KxnV38kkaL1bB9g45xWs4NtTX72YqYI",
+    "ranges": {
+      "leads": "Leads!A:Z"
+    }
+  }
+}
+'''
+
+# Secret should be added via:
+# npx wrangler secret put SA_PRIVATE_KEY

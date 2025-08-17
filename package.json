@@ -1,0 +1,30 @@
+{
+  "name": "sheets-form-api",
+  "version": "2.0.0",
+  "description": "Universal Google Sheets API service with auto-mapping support",
+  "main": "src/index.ts",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "type-check": "tsc --noEmit"
+  },
+  "keywords": [
+    "google-sheets",
+    "api",
+    "cloudflare-workers",
+    "hono",
+    "forms"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20240806.0",
+    "typescript": "^5.5.4",
+    "wrangler": "^3.67.1"
+  },
+  "dependencies": {
+    "google-auth-library": "^10.2.1",
+    "google-spreadsheet": "^5.0.2",
+    "hono": "^4.5.5"
+  }
+}

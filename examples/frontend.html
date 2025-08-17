@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Google Sheets Form Example</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        
+        input, textarea, select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        
+        button {
+            background-color: #007cba;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        
+        button:hover {
+            background-color: #005a87;
+        }
+        
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .success {
+            color: #28a745;
+            margin-top: 10px;
+        }
+        
+        .error {
+            color: #dc3545;
+            margin-top: 10px;
+        }
+        
+        .loading {
+            color: #6c757d;
+        }
+    </style>
+</head>
+<body>
+    <h1>Lead Form → Google Sheets</h1>
+    <p>Simple form that sends data to Google Sheets via Cloudflare Worker.</p>
+    
+    <form id="leadForm">
+        <div class="form-group">
+            <label for="name">Name *</label>
+            <input type="text" id="name" name="name" required>
+        </div>
+        
+        <div class="form-group">
+            <label for="email">Email *</label>
+            <input type="email" id="email" name="email" required>
+        </div>
+        
+        <div class="form-group">
+            <label for="phone">Phone</label>
+            <input type="tel" id="phone" name="phone">
+        </div>
+        
+        <div class="form-group">
+            <label for="source">Source</label>
+            <select id="source" name="source">
+                <option value="">Select source</option>
+                <option value="google">Google</option>
+                <option value="facebook">Facebook</option>
+                <option value="instagram">Instagram</option>
+                <option value="yandex">Yandex</option>
+                <option value="direct">Direct</option>
+                <option value="referral">Referral</option>
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label for="message">Message</label>
+            <textarea id="message" name="message" rows="4" placeholder="Describe your request..."></textarea>
+        </div>
+        
+        <button type="submit" id="submitBtn">Send</button>
+        
+        <div id="status"></div>
+    </form>
+
+    <script>
+        // Replace with your Cloudflare Worker URL
+        const API_URL = 'https://your-worker.example.com';
+        
+        const form = document.getElementById('leadForm');
+        const submitBtn = document.getElementById('submitBtn');
+        const status = document.getElementById('status');
+        
+        // Get UTM parameters from URL
+        function getUtmParams() {
+            const urlParams = new URLSearchParams(window.location.search);
+            return {
+                utm_source: urlParams.get('utm_source') || '',
+                utm_medium: urlParams.get('utm_medium') || '',
+                utm_campaign: urlParams.get('utm_campaign') || '',
+                utm_content: urlParams.get('utm_content') || '',
+                utm_term: urlParams.get('utm_term') || ''
+            };
+        }
+        
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            // Show loading state
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Sending...';
+            status.innerHTML = '<div class="loading">Sending data...</div>';
+            
+            try {
+                // Collect form data
+                const formData = new FormData(form);
+                const data = {};
+                
+                for (let [key, value] of formData.entries()) {
+                    data[key] = value;
+                }
+                
+                // Add metadata
+                data.timestamp = new Date().toISOString();
+                data.page_url = window.location.href;
+                data.user_agent = navigator.userAgent;
+                data.referrer = document.referrer;
+                
+                // Add UTM parameters
+                Object.assign(data, getUtmParams());
+                
+                // Send to API
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ data })
+                });
+                
+                const result = await response.json();
+                
+                if (result.ok) {
+                    status.innerHTML = '<div class="success">✅ Thank you! Your request has been sent.</div>';
+                    form.reset();
+                    
+                    // Optional: redirect or send event to analytics
+                    // gtag('event', 'form_submit', { event_category: 'engagement' });
+                } else {
+                    throw new Error(result.error || 'Unknown error');
+                }
+                
+            } catch (error) {
+                console.error('Form submission error:', error);
+                status.innerHTML = `<div class="error">❌ Error: ${error.message}</div>`;
+            } finally {
+                // Restore button state
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Send';
+            }
+        });
+        
+        // Auto-fill source based on referrer
+        window.addEventListener('load', () => {
+            const sourceSelect = document.getElementById('source');
+            const referrer = document.referrer.toLowerCase();
+            
+            if (referrer.includes('google.com')) {
+                sourceSelect.value = 'google';
+            } else if (referrer.includes('facebook.com') || referrer.includes('fb.com')) {
+                sourceSelect.value = 'facebook';
+            } else if (referrer.includes('instagram.com')) {
+                sourceSelect.value = 'instagram';
+            } else if (referrer.includes('yandex.')) {
+                sourceSelect.value = 'yandex';
+            }
+        });
+    </script>
+</body>
+</html>

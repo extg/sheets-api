@@ -19,12 +19,18 @@
   "license": "MIT",
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20240806.0",
+    "dotenv": "^17.2.1",
     "typescript": "^5.5.4",
     "wrangler": "^3.67.1"
   },
   "dependencies": {
+    "@hono/zod-validator": "^0.7.2",
+    "@scalar/hono-api-reference": "^0.9.13",
     "google-auth-library": "^10.2.1",
     "google-spreadsheet": "^5.0.2",
-    "hono": "^4.5.5"
+    "hono": "^4.5.5",
+    "hono-openapi": "^0.4.8",
+    "zod": "^4.0.17",
+    "zod-openapi": "^5.3.1"
   }
 }

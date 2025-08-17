@@ -1,3 +1,5 @@
+import { z } from 'zod'
+
 export type Env = {
   Bindings: {
     SA_EMAIL: string
@@ -15,13 +17,43 @@ export type ProjectConfig = {
   ranges: Record<string, string> // listName -> range
 }
 
-export type AppendPayload = {
-  data: Record<string, unknown> | Record<string, unknown>[]
-}
+// Zod schemas for validation
+export const AppendPayloadSchema = z.object({
+  data: z.union([
+    z.record(z.string(), z.unknown()),
+    z.array(z.record(z.string(), z.unknown()))
+  ])
+})
 
-export type AppendResponse = {
-  ok: boolean
-  written?: number
-  error?: string
-  detail?: string
-}
+export const AppendResponseSchema = z.object({
+  ok: z.boolean(),
+  written: z.number().optional(),
+  error: z.string().optional(),
+  detail: z.string().optional()
+})
+
+export const AppendSuccessResponseSchema = z.object({
+  ok: z.literal(true),
+  written: z.number()
+})
+
+export const AppendErrorResponseSchema = z.object({
+  ok: z.literal(false),
+  error: z.string(),
+  detail: z.string().optional()
+})
+
+export const HealthResponseSchema = z.object({
+  service: z.string(),
+  version: z.string(),
+  status: z.string(),
+  endpoints: z.array(z.string())
+})
+
+export const ParamsSchema = z.object({
+  projectId: z.string(),
+  listName: z.string()
+})
+
+export type AppendPayload = z.infer<typeof AppendPayloadSchema>
+export type AppendResponse = z.infer<typeof AppendResponseSchema>

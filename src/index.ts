@@ -44,7 +44,7 @@ app.get('/health', (c) => {
   
   return c.json({
     service: 'sheets-api',
-    version: '2.0.0',
+    version: '2.1.0',
     status: 'healthy',
     server: {
       url: currentUrl.origin,
@@ -318,8 +318,8 @@ app.get('/openapi', (c) => {
     openapi: '3.0.0',
     info: {
       title: 'Sheets API',
-      version: '2.0.0',
-      description: 'Universal Google Sheets API service with auto-mapping support. This API allows you to append data to Google Sheets through pre-configured projects and ranges.'
+      version: '2.1.0',
+      description: 'Universal Google Sheets API service with auto-mapping support. This API allows you to read from and write to Google Sheets through pre-configured projects and ranges.'
     },
     servers: [
       {

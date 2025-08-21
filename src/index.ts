@@ -6,12 +6,13 @@ import type {
   Env, 
   AppendPayload, 
   AppendResponse, 
+  ReadResponse,
   ProjectConfig 
 } from './types'
 import { 
   AppendPayloadSchema
 } from './types'
-import { appendToSheet } from './sheets'
+import { appendToSheet, readFromSheet } from './sheets'
 
 const app = new Hono<Env>()
 
@@ -20,7 +21,7 @@ app.use('*', async (c, next) => {
   const allowedOrigins = c.env.ALLOWED_ORIGINS || '*'
   c.header('Access-Control-Allow-Origin', allowedOrigins)
   c.header('Access-Control-Allow-Headers', 'content-type')
-  c.header('Access-Control-Allow-Methods', 'POST, OPTIONS')
+  c.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
   
   if (c.req.method === 'OPTIONS') {
     return c.body(null, 204)
@@ -43,7 +44,7 @@ app.get('/health', (c) => {
   
   return c.json({
     service: 'sheets-api',
-    version: '2.0.0',
+    version: '2.1.0',
     status: 'healthy',
     server: {
       url: currentUrl.origin,
@@ -54,7 +55,9 @@ app.get('/health', (c) => {
           endpoints: [
         'GET  / (docs)',
         'GET  /health',
+        'GET  /:projectId/:listName',
         'POST /:projectId/:listName',
+        'GET  /direct/:sheetId/:range',
         'POST /direct/:sheetId/:range',
         'GET  /openapi'
       ]
@@ -208,6 +211,103 @@ app.post(
   }
 )
 
+// GET endpoint for project-based reading
+app.get(
+  '/:projectId/:listName',
+  async (c) => {
+    const startTime = Date.now()
+    const projectId = c.req.param('projectId')
+    const listName = c.req.param('listName')
+    const format = c.req.query('format') as 'raw' | 'objects' || 'objects'
+    
+    try {
+      const config = resolveSheetConfig(projectId, listName, c.env)
+
+      // Read from sheet
+      const result = await readFromSheet(
+        config.sheetId,
+        config.range,
+        config.saEmail,
+        config.saPrivateKey,
+        format
+      )
+
+      const duration = Date.now() - startTime
+      
+      console.log(`[${new Date().toISOString()}] SUCCESS - read project: ${projectId}, list: ${listName}, count: ${result.count}, duration: ${duration}ms`)
+
+      return c.json<ReadResponse>({ 
+        ok: true, 
+        data: result.data,
+        count: result.count
+      })
+
+    } catch (error) {
+      const duration = Date.now() - startTime
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      
+      console.log(`[${new Date().toISOString()}] ERROR - read project: ${projectId}, list: ${listName}, error: ${errorMessage}, duration: ${duration}ms`)
+      
+      return c.json<ReadResponse>({ 
+        ok: false, 
+        error: 'read_failed',
+        detail: errorMessage
+      }, 502)
+    }
+  }
+)
+
+// GET endpoint for direct reading
+app.get(
+  '/direct/:sheetId/:range',
+  async (c) => {
+    const startTime = Date.now()
+    const sheetId = c.req.param('sheetId')
+    const range = decodeURIComponent(c.req.param('range'))
+    const format = c.req.query('format') as 'raw' | 'objects' || 'objects'
+    
+    try {
+      const saEmail = c.env.SA_EMAIL
+      const saPrivateKey = c.env.SA_PRIVATE_KEY
+
+      if (!saEmail || !saPrivateKey) {
+        throw new Error('Service account credentials not configured')
+      }
+
+      // Read from sheet
+      const result = await readFromSheet(
+        sheetId,
+        range,
+        saEmail,
+        saPrivateKey,
+        format
+      )
+
+      const duration = Date.now() - startTime
+      
+      console.log(`[${new Date().toISOString()}] SUCCESS - read direct: ${sheetId}/${range}, count: ${result.count}, duration: ${duration}ms`)
+
+      return c.json<ReadResponse>({ 
+        ok: true, 
+        data: result.data,
+        count: result.count
+      })
+
+    } catch (error) {
+      const duration = Date.now() - startTime
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      
+      console.log(`[${new Date().toISOString()}] ERROR - read direct: ${sheetId}/${range}, error: ${errorMessage}, duration: ${duration}ms`)
+      
+      return c.json<ReadResponse>({ 
+        ok: false, 
+        error: 'read_failed',
+        detail: errorMessage
+      }, 502)
+    }
+  }
+)
+
 // OpenAPI specification endpoint
 app.get('/openapi', (c) => {
   // Get current URL dynamically
@@ -218,8 +318,8 @@ app.get('/openapi', (c) => {
     openapi: '3.0.0',
     info: {
       title: 'Sheets API',
-      version: '2.0.0',
-      description: 'Universal Google Sheets API service with auto-mapping support. This API allows you to append data to Google Sheets through pre-configured projects and ranges.'
+      version: '2.1.0',
+      description: 'Universal Google Sheets API service with auto-mapping support. This API allows you to read from and write to Google Sheets through pre-configured projects and ranges.'
     },
     servers: [
       {
@@ -267,6 +367,89 @@ app.get('/openapi', (c) => {
         }
       },
       '/{projectId}/{listName}': {
+        get: {
+          summary: 'Read data from Google Sheet',
+          description: 'Read data from a specific sheet range in a configured Google Spreadsheet',
+          tags: ['Data Management'],
+          parameters: [
+            {
+              name: 'projectId',
+              in: 'path',
+              required: true,
+              schema: { type: 'string' },
+              example: 'myproject'
+            },
+            {
+              name: 'listName',
+              in: 'path',
+              required: true,
+              schema: { type: 'string' },
+              example: 'contacts'
+            },
+            {
+              name: 'format',
+              in: 'query',
+              required: false,
+              schema: { 
+                type: 'string',
+                enum: ['raw', 'objects'],
+                default: 'objects'
+              },
+              description: 'Response format: "raw" returns 2D array, "objects" returns array of objects with headers as keys'
+            }
+          ],
+          responses: {
+            '200': {
+              description: 'Data successfully retrieved',
+              content: {
+                'application/json': {
+                  schema: {
+                    type: 'object',
+                    properties: {
+                      ok: { type: 'boolean', example: true },
+                      data: {
+                        oneOf: [
+                          {
+                            type: 'array',
+                            items: {
+                              type: 'array',
+                              items: { type: 'string' }
+                            },
+                            description: 'Raw format: 2D array of values'
+                          },
+                          {
+                            type: 'array',
+                            items: {
+                              type: 'object',
+                              additionalProperties: true
+                            },
+                            description: 'Objects format: array of objects with headers as keys'
+                          }
+                        ]
+                      },
+                      count: { type: 'number', example: 5 }
+                    }
+                  }
+                }
+              }
+            },
+            '502': {
+              description: 'Failed to read data from sheet',
+              content: {
+                'application/json': {
+                  schema: {
+                    type: 'object',
+                    properties: {
+                      ok: { type: 'boolean', example: false },
+                      error: { type: 'string', example: 'read_failed' },
+                      detail: { type: 'string', example: 'Project not found or invalid sheet ID' }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
         post: {
           summary: 'Append data to Google Sheet',
           description: 'Append data to a specific sheet range in a configured Google Spreadsheet',
@@ -403,6 +586,91 @@ app.get('/openapi', (c) => {
         }
       },
       '/direct/{sheetId}/{range}': {
+        get: {
+          summary: 'Read data directly from Google Sheet',
+          description: 'Read data directly from a specific sheet using sheetId and range, bypassing project configuration',
+          tags: ['Data Management'],
+          parameters: [
+            {
+              name: 'sheetId',
+              in: 'path',
+              required: true,
+              schema: { type: 'string' },
+              description: 'Google Sheets document ID',
+              example: '1ABC123XYZ456...'
+            },
+            {
+              name: 'range',
+              in: 'path',
+              required: true,
+              schema: { type: 'string' },
+              description: 'Sheet range (URL encoded)',
+              example: 'Sheet1!A:Z'
+            },
+            {
+              name: 'format',
+              in: 'query',
+              required: false,
+              schema: { 
+                type: 'string',
+                enum: ['raw', 'objects'],
+                default: 'objects'
+              },
+              description: 'Response format: "raw" returns 2D array, "objects" returns array of objects with headers as keys'
+            }
+          ],
+          responses: {
+            '200': {
+              description: 'Data successfully retrieved',
+              content: {
+                'application/json': {
+                  schema: {
+                    type: 'object',
+                    properties: {
+                      ok: { type: 'boolean', example: true },
+                      data: {
+                        oneOf: [
+                          {
+                            type: 'array',
+                            items: {
+                              type: 'array',
+                              items: { type: 'string' }
+                            },
+                            description: 'Raw format: 2D array of values'
+                          },
+                          {
+                            type: 'array',
+                            items: {
+                              type: 'object',
+                              additionalProperties: true
+                            },
+                            description: 'Objects format: array of objects with headers as keys'
+                          }
+                        ]
+                      },
+                      count: { type: 'number', example: 5 }
+                    }
+                  }
+                }
+              }
+            },
+            '502': {
+              description: 'Failed to read data from sheet',
+              content: {
+                'application/json': {
+                  schema: {
+                    type: 'object',
+                    properties: {
+                      ok: { type: 'boolean', example: false },
+                      error: { type: 'string', example: 'read_failed' },
+                      detail: { type: 'string', example: 'Invalid spreadsheet ID' }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
         post: {
           summary: 'Append data directly to Google Sheet',
           description: 'Append data directly to a specific sheet using sheetId and range, bypassing project configuration',

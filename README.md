@@ -1,16 +1,18 @@
 # Universal Google Sheets API Service
 
-A minimal, configurable API service built on **Hono + Cloudflare Workers** that accepts JSON data and writes it to Google Sheets through Service Account authentication. Now with **multi-project support**!
+A minimal, configurable API service built on **Hono + Cloudflare Workers** that provides full read/write access to Google Sheets through Service Account authentication. Now with **multi-project support** and **data reading capabilities**!
 
 ## Features
 
+- **Full Read/Write Access**: Read data from and write data to Google Sheets
+- **Multiple Response Formats**: Get data as objects (with headers as keys) or raw 2D arrays
 - **Multi-Project Support**: Configure multiple projects with different sheets and lists
 - **Auto-mapping**: Automatically maps JSON fields to spreadsheet columns based on header row
 - **Flexible URLs**: Project-based URLs with optional list names in the URL path
 - **Service Account Auth**: Secure authentication using Google Service Account JWT
 - **CORS Support**: Built-in CORS handling with configurable origins
 - **High Performance**: Runs on Cloudflare Workers edge network with built-in caching
-- **Modern Stack**: Built with google-spreadsheet library for reliability
+- **Modern Stack**: Built with Web Crypto API for maximum compatibility
 
 ---
 
@@ -37,17 +39,28 @@ pnpm deploy
 **Available Endpoints:**
 
 ```bash
-# Project-based endpoint (uses PROJECT_CONFIG aliases)
-POST /:projectId/:listName
+# Project-based endpoints (uses PROJECT_CONFIG aliases)
+GET  /:projectId/:listName  # Read data from sheet
+POST /:projectId/:listName  # Write data to sheet
 
-# Direct endpoint (bypasses PROJECT_CONFIG, uses direct parameters)
-POST /direct/:sheetId/:range
+# Direct endpoints (bypasses PROJECT_CONFIG, uses direct parameters)
+GET  /direct/:sheetId/:range  # Read data from sheet
+POST /direct/:sheetId/:range  # Write data to sheet
 ```
 
 **Example Requests:**
 
 ```bash
-# Option 1: Project-based approach (using configured aliases)
+# Reading data - Project-based approach
+curl https://your-worker.workers.dev/myproject/contacts
+
+# Reading data - Direct approach
+curl https://your-worker.workers.dev/direct/1ABC123XYZ.../Sheet1%21A%3AZ
+
+# Reading data in raw format (2D array)
+curl "https://your-worker.workers.dev/myproject/contacts?format=raw"
+
+# Writing data - Project-based approach
 curl -X POST https://your-worker.workers.dev/myproject/contacts \
   -H "Content-Type: application/json" \
   -d '{
@@ -60,7 +73,7 @@ curl -X POST https://your-worker.workers.dev/myproject/contacts \
     }
   }'
 
-# Option 2: Direct approach (bypassing PROJECT_CONFIG)
+# Writing data - Direct approach
 curl -X POST https://your-worker.workers.dev/direct/1ABC123XYZ.../Sheet1%21A%3AZ \
   -H "Content-Type: application/json" \
   -d '{
@@ -72,7 +85,46 @@ curl -X POST https://your-worker.workers.dev/direct/1ABC123XYZ.../Sheet1%21A%3AZ
   }'
 ```
 
-**Example Response:**
+**Example Responses:**
+
+*Reading data (objects format):*
+```json
+{
+  "ok": true,
+  "data": [
+    {
+      "name": "John Doe",
+      "email": "john@example.com",
+      "phone": "+1234567890",
+      "company": "Acme Corp",
+      "source": "website"
+    },
+    {
+      "name": "Jane Smith",
+      "email": "jane@example.com",
+      "phone": "+0987654321",
+      "company": "Tech Solutions",
+      "source": "referral"
+    }
+  ],
+  "count": 2
+}
+```
+
+*Reading data (raw format):*
+```json
+{
+  "ok": true,
+  "data": [
+    ["name", "email", "phone", "company", "source"],
+    ["John Doe", "john@example.com", "+1234567890", "Acme Corp", "website"],
+    ["Jane Smith", "jane@example.com", "+0987654321", "Tech Solutions", "referral"]
+  ],
+  "count": 3
+}
+```
+
+*Writing data:*
 ```json
 {
   "ok": true,
@@ -121,13 +173,33 @@ npx wrangler secret put SA_PRIVATE_KEY
 
 - `GET /` - Interactive API documentation (Swagger UI)
 - `GET /health` - Health check and endpoint list
+- `GET /:projectId/:listName` - Read from project-configured list
 - `POST /:projectId/:listName` - Append to project-configured list
+- `GET /direct/:sheetId/:range` - Read directly from sheet (bypasses project config)
 - `POST /direct/:sheetId/:range` - Append directly to sheet (bypasses project config)
 - `GET /openapi` - OpenAPI specification
+
+### GET /:projectId/:listName
+
+Reads data from a specific list within the project using PROJECT_CONFIG aliases.
+
+**Query Parameters:**
+- `format` (optional): Response format - `objects` (default) or `raw`
+  - `objects`: Returns array of objects with headers as keys
+  - `raw`: Returns 2D array of values including headers
 
 ### POST /:projectId/:listName
 
 Appends data to a specific list within the project using PROJECT_CONFIG aliases.
+
+### GET /direct/:sheetId/:range
+
+Reads data directly from a Google Sheet using sheetId and range, bypassing project configuration. The range parameter should be URL encoded (e.g., `Sheet1%21A%3AZ` for `Sheet1!A:Z`).
+
+**Query Parameters:**
+- `format` (optional): Response format - `objects` (default) or `raw`
+  - `objects`: Returns array of objects with headers as keys
+  - `raw`: Returns 2D array of values including headers
 
 ### POST /direct/:sheetId/:range
 
@@ -146,7 +218,19 @@ Appends data directly to a Google Sheet using sheetId and range, bypassing proje
 }
 ```
 
-**Response (Success):**
+**Response (Success - Reading):**
+```json
+{
+  "ok": true,
+  "data": [
+    {"name": "John Doe", "email": "john@example.com"},
+    {"name": "Jane Smith", "email": "jane@example.com"}
+  ],
+  "count": 2
+}
+```
+
+**Response (Success - Writing):**
 ```json
 {
   "ok": true,
@@ -158,14 +242,14 @@ Appends data directly to a Google Sheet using sheetId and range, bypassing proje
 ```json
 {
   "ok": false,
-  "error": "append_failed",
+  "error": "read_failed",
   "detail": "Project not found or invalid sheet ID"
 }
 ```
 
 **Status Codes:**
-- `200` - Success
-- `400` - Invalid payload, validation error
+- `200` - Success (reading or writing)
+- `400` - Invalid payload, validation error (writing only)
 - `502` - Google Sheets API error, project/list not found, or authentication error
 
 ---
@@ -230,24 +314,36 @@ The service automatically maps JSON fields to spreadsheet columns:
 
 ```bash
 # Project-based approach (configured aliases)
-POST /myproject/contacts
-→ Goes to configured "Contacts!A:Z" range in myproject's Google Sheet
+GET  /myproject/contacts
+→ Reads from configured "Contacts!A:Z" range in myproject's Google Sheet
 
-POST /myproject/leads
-→ Goes to configured "Leads!A:Z" range in myproject's Google Sheet
+POST /myproject/contacts
+→ Writes to configured "Contacts!A:Z" range in myproject's Google Sheet
+
+GET  /myproject/leads
+→ Reads from configured "Leads!A:Z" range in myproject's Google Sheet
 
 # Direct approach (no configuration needed)
-POST /direct/1ABC123XYZ456.../Contacts%21A%3AZ
-→ Goes directly to "Contacts!A:Z" in specified Google Sheet
+GET  /direct/1ABC123XYZ456.../Contacts%21A%3AZ
+→ Reads directly from "Contacts!A:Z" in specified Google Sheet
 
-POST /direct/1ABC123XYZ456.../Sheet1%21B2%3AF100
-→ Goes directly to "Sheet1!B2:F100" range in specified Google Sheet
+POST /direct/1ABC123XYZ456.../Contacts%21A%3AZ
+→ Writes directly to "Contacts!A:Z" in specified Google Sheet
+
+GET  /direct/1ABC123XYZ456.../Sheet1%21B2%3AF100
+→ Reads directly from "Sheet1!B2:F100" range in specified Google Sheet
 ```
 
 ### Frontend Integration
 
 ```javascript
-// React/Next.js example - Project mode
+// React/Next.js example - Reading data (Project mode)
+const getContacts = async () => {
+  const response = await fetch('https://your-worker.workers.dev/myproject/contacts')
+  return response.json()
+}
+
+// React/Next.js example - Writing data (Project mode)
 const submitContact = async (formData) => {
   const response = await fetch('https://your-worker.workers.dev/myproject/contacts', {
     method: 'POST',
@@ -257,7 +353,15 @@ const submitContact = async (formData) => {
   return response.json()
 }
 
-// React/Next.js example - Direct mode
+// React/Next.js example - Reading data (Direct mode)
+const getDataDirect = async () => {
+  const sheetId = '1ABC123XYZ456...'
+  const range = encodeURIComponent('Contacts!A:Z')
+  const response = await fetch(`https://your-worker.workers.dev/direct/${sheetId}/${range}`)
+  return response.json()
+}
+
+// React/Next.js example - Writing data (Direct mode)
 const submitDirect = async (formData) => {
   const sheetId = '1ABC123XYZ456...'
   const range = encodeURIComponent('Contacts!A:Z')
@@ -266,6 +370,12 @@ const submitDirect = async (formData) => {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ data: formData })
   })
+  return response.json()
+}
+
+// Reading data in raw format
+const getRawData = async () => {
+  const response = await fetch('https://your-worker.workers.dev/myproject/contacts?format=raw')
   return response.json()
 }
 ```
@@ -310,12 +420,21 @@ pnpm type-check
 # Test health endpoint
 curl http://localhost:8787/health
 
-# Test project endpoint
+# Test reading data - project endpoint
+curl http://localhost:8787/myproject/contacts
+
+# Test reading data - direct endpoint
+curl http://localhost:8787/direct/1ABC123XYZ.../Sheet1%21A%3AZ
+
+# Test reading data in raw format
+curl "http://localhost:8787/myproject/contacts?format=raw"
+
+# Test writing data - project endpoint
 curl -X POST http://localhost:8787/myproject/contacts \
   -H "Content-Type: application/json" \
   -d '{"data": {"name": "Test User", "email": "test@example.com"}}'
 
-# Test direct endpoint
+# Test writing data - direct endpoint
 curl -X POST http://localhost:8787/direct/1ABC123XYZ.../Sheet1%21A%3AZ \
   -H "Content-Type: application/json" \
   -d '{"data": {"name": "Test User", "email": "test@example.com"}}'

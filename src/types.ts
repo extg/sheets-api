@@ -60,6 +60,33 @@ export const DirectParamsSchema = z.object({
   range: z.string()
 })
 
+export const ReadResponseSchema = z.object({
+  ok: z.boolean(),
+  data: z.union([
+    z.array(z.array(z.unknown())), // raw format
+    z.array(z.record(z.string(), z.unknown())) // objects format
+  ]).optional(),
+  count: z.number().optional(),
+  error: z.string().optional(),
+  detail: z.string().optional()
+})
+
+export const ReadSuccessResponseSchema = z.object({
+  ok: z.literal(true),
+  data: z.union([
+    z.array(z.array(z.unknown())), // raw format
+    z.array(z.record(z.string(), z.unknown())) // objects format
+  ]),
+  count: z.number()
+})
+
+export const ReadErrorResponseSchema = z.object({
+  ok: z.literal(false),
+  error: z.string(),
+  detail: z.string().optional()
+})
+
 export type AppendPayload = z.infer<typeof AppendPayloadSchema>
 export type AppendResponse = z.infer<typeof AppendResponseSchema>
+export type ReadResponse = z.infer<typeof ReadResponseSchema>
 export type DirectParams = z.infer<typeof DirectParamsSchema>

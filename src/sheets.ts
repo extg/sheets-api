@@ -123,6 +123,33 @@ export class WebCryptoSheetsClient {
       updatedRows: result.updates?.updatedRows || 0
     }
   }
+
+  async getValues(
+    spreadsheetId: string,
+    range: string
+  ): Promise<{ values: unknown[][] }> {
+    const token = await this.getAccessToken()
+    
+    const response = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(range)}`,
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    )
+
+    if (!response.ok) {
+      const error = await response.text()
+      throw new Error(`Failed to get values: ${error}`)
+    }
+
+    const result = await response.json() as ValueRange
+    return {
+      values: result.values || []
+    }
+  }
 }
 
 export async function appendToSheet(
@@ -178,4 +205,69 @@ export async function appendToSheet(
   const result = await client.appendValues(sheetId, targetRange, values)
   
   return { written: result.updatedRows }
+}
+
+export async function readFromSheet(
+  sheetId: string,
+  range: string,
+  serviceAccountEmail: string,
+  privateKey: string,
+  format: 'raw' | 'objects' = 'objects'
+): Promise<{ data: unknown[][] | Record<string, unknown>[], count: number }> {
+  // Replace escaped newlines from env vars
+  const client = new WebCryptoSheetsClient(serviceAccountEmail, privateKey.replace(/\\n/g, '\n'))
+  
+  // Get spreadsheet info to validate sheet exists
+  const sheetInfo = await client.getSpreadsheetInfo(sheetId)
+  
+  // Parse range to get sheet name
+  const sheetName = range.includes('!') ? range.split('!')[0] : undefined
+  
+  // Find the target sheet
+  let targetSheet
+  if (sheetName) {
+    targetSheet = sheetInfo.sheets.find(sheet => sheet.properties.title === sheetName)
+    if (!targetSheet) {
+      throw new Error(`Sheet "${sheetName}" not found`)
+    }
+  } else {
+    targetSheet = sheetInfo.sheets[0]
+    if (!targetSheet) {
+      throw new Error('No sheets found in spreadsheet')
+    }
+  }
+
+  // Use the full range or construct one for the target sheet
+  const targetRange = sheetName ? range : `${targetSheet.properties.title}!A:Z`
+  
+  const result = await client.getValues(sheetId, targetRange)
+  
+  if (format === 'raw') {
+    return { 
+      data: result.values, 
+      count: result.values.length 
+    }
+  }
+
+  // Convert to objects format
+  if (result.values.length === 0) {
+    return { data: [], count: 0 }
+  }
+
+  // First row as headers
+  const headers = result.values[0] as string[]
+  const dataRows = result.values.slice(1)
+  
+  const objects = dataRows.map(row => {
+    const obj: Record<string, unknown> = {}
+    headers.forEach((header, index) => {
+      obj[header] = row[index] || ''
+    })
+    return obj
+  })
+
+  return { 
+    data: objects, 
+    count: objects.length 
+  }
 }

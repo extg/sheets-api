@@ -1,6 +1,6 @@
 {
   "name": "sheets-form-api",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "Universal Google Sheets API service with auto-mapping support",
   "main": "src/index.ts",
   "scripts": {
